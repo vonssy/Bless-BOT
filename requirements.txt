@@ -1,0 +1,4 @@
+cloudscraper
+fake-useragent
+colorama
+pytz
