@@ -758,7 +758,7 @@ class Bless:
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"GET IP Address Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def node_status(self, token: str, pub_key: str, proxy=None, retries=5):
-        url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}"
+        url = f"https://gateway-run-indexer.bls.dev/api/v1/nodes/{pub_key}"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {token}",
@@ -777,7 +777,7 @@ class Bless:
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"GET Node Status Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def register_node(self, token: str, pub_key: str, hardware_id: str, ip_address: str, proxy=None, retries=5):
-        url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}"
+        url = f"https://gateway-run-indexer.bls.dev/api/v1/nodes/{pub_key}"
         data = json.dumps(self.generate_payload(hardware_id, ip_address))
         headers = {
             **self.headers,
@@ -799,7 +799,7 @@ class Bless:
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def start_session(self, token: str, pub_key: str, proxy=None, retries=5):
-        url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}/start-session"
+        url = f"https://gateway-run-indexer.bls.dev/api/v1/nodes/{pub_key}/start-session"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {token}",
@@ -820,7 +820,7 @@ class Bless:
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"Start Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
     async def send_ping(self, token: str, pub_key: str, proxy=None, retries=5):
-        url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}/ping"
+        url = f"https://gateway-run-indexer.bls.dev/api/v1/nodes/{pub_key}/ping"
         data = json.dumps({"isB7SConnected":True})
         headers = {
             **self.headers,
