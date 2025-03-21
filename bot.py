@@ -1,14 +1,13 @@
-import cloudscraper
+from curl_cffi import requests
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, json, string, random, os, pytz
+import asyncio, json, hashlib, string, random, os, pytz
 
 wib = pytz.timezone('Asia/Jakarta')
 
 class Bless:
     def __init__(self) -> None:
-        self.scraper = cloudscraper.create_scraper()
         self.headers = {
             "Accept": "*/*",
             "Accept-language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -21,6 +20,7 @@ class Bless:
         self.proxies = []
         self.proxy_index = 0
         self.account_proxies = {}
+        self.extension_version = "0.1.8"
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -51,7 +51,7 @@ class Bless:
         filename = "proxy.txt"
         try:
             if use_proxy_choice == 1:
-                response = await asyncio.to_thread(self.scraper.get, "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt")
+                response = await asyncio.to_thread(requests.get, "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt")
                 response.raise_for_status()
                 content = response.text
                 with open(filename, 'w') as f:
@@ -80,8 +80,8 @@ class Bless:
     def check_proxy_schemes(self, proxies):
         schemes = ["http://", "https://", "socks4://", "socks5://"]
         if any(proxies.startswith(scheme) for scheme in schemes):
-            return {"http":proxies, "https":proxies}
-        return {"http":f"http://{proxies}", "https":f"http://{proxies}"}
+            return proxies
+        return f"http://{proxies}"
 
     def get_next_proxy_for_account(self, account):
         if account not in self.account_proxies:
@@ -697,8 +697,13 @@ class Bless:
             "ipAddress":ip_address,
             "hardwareId":hardware_id,
             "hardwareInfo":self.generate_hardware_info(),
-            "extensionVersion":"0.1.7"
+            "extensionVersion":self.extension_version
         }
+    
+    def generate_signature(self):
+        random_data = os.urandom(32)
+        hash_object = hashlib.sha512(random_data)
+        return hash_object.hexdigest()
         
     def mask_account(self, account):
         mask_account = account[:3] + '*' * 3 + account[-3:]
@@ -746,7 +751,7 @@ class Bless:
         url = "https://ip-check.bless.network/"
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(self.scraper.get, url=url, headers=self.headers, proxies=proxy, timeout=60)
+                response = await asyncio.to_thread(requests.get, url=url, headers=self.headers, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
                 result = response.json()
                 return result['ip']
@@ -761,12 +766,11 @@ class Bless:
         url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}"
         headers = {
             **self.headers,
-            "Authorization": f"Bearer {token}",
-            "X-Extension-Version": "0.1.7",
+            "Authorization": f"Bearer {token}"
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(self.scraper.get, url=url, headers=headers, proxies=proxy, timeout=60)
+                response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -776,7 +780,7 @@ class Bless:
 
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"GET Node Status Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def register_node(self, token: str, pub_key: str, hardware_id: str, ip_address: str, proxy=None, retries=5):
+    async def register_node(self, token: str, pub_key: str, hardware_id: str, ip_address: str, signature: str, proxy=None, retries=5):
         url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}"
         data = json.dumps(self.generate_payload(hardware_id, ip_address))
         headers = {
@@ -784,11 +788,12 @@ class Bless:
             "Authorization": f"Bearer {token}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Version": "0.1.7",
+            "X-Extension-Signature": signature,
+            "X-Extension-Version": self.extension_version
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(self.scraper.post, url=url, headers=headers, data=data, proxies=proxy, timeout=60)
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -798,18 +803,19 @@ class Bless:
 
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def start_session(self, token: str, pub_key: str, proxy=None, retries=5):
+    async def start_session(self, token: str, pub_key: str, signature: str, proxy=None, retries=5):
         url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}/start-session"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {token}",
             "Content-Length": "2",
             "Content-Type": "application/json",
-            "X-Extension-Version": "0.1.7",
+            "X-Extension-Signature": signature,
+            "X-Extension-Version": self.extension_version
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(self.scraper.post, url=url, headers=headers, json={}, proxies=proxy, timeout=60)
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -819,7 +825,7 @@ class Bless:
 
                 return self.print_message(token, pub_key, proxy, Fore.RED, f"Start Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def send_ping(self, token: str, pub_key: str, proxy=None, retries=5):
+    async def send_ping(self, token: str, pub_key: str, signature: str, proxy=None, retries=5):
         url = f"https://gateway-run.bls.dev/api/v1/nodes/{pub_key}/ping"
         data = json.dumps({"isB7SConnected":True})
         headers = {
@@ -827,11 +833,12 @@ class Bless:
             "Authorization": f"Bearer {token}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Version": "0.1.7",
+            "X-Extension-Signature": signature,
+            "X-Extension-Version": self.extension_version
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(self.scraper.post, url=url, headers=headers, data=data, proxies=proxy, timeout=60)
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="safari15_5")
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -854,13 +861,13 @@ class Bless:
             self.print_message(token, pub_key, proxy, Fore.GREEN, f"IP Address: {Fore.WHITE+Style.BRIGHT}{ip_address}")
             return ip_address
         
-    async def process_registering_node(self, token: str, pub_key: str, hardware_id: str, use_proxy: bool):
+    async def process_registering_node(self, token: str, pub_key: str, hardware_id: str, signature: str, use_proxy: bool):
         ip_address = await self.process_check_ip_address(token, pub_key, use_proxy)
         if ip_address:
             proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
             node = None
             while node is None:
-                node = await self.register_node(token, pub_key, hardware_id, ip_address, proxy)
+                node = await self.register_node(token, pub_key, hardware_id, ip_address, signature, proxy)
                 if not node:
                     ip_address = await self.process_check_ip_address(token, pub_key, use_proxy)
                     proxy = self.rotate_proxy_for_account(pub_key) if use_proxy else None
@@ -870,15 +877,15 @@ class Bless:
                 self.print_message(token, pub_key, proxy, Fore.GREEN, f"Registering Node Success")
                 return node
         
-    async def process_start_session(self, token, pub_key: str, hardware_id: str, use_proxy: bool):
-        node = await self.process_registering_node(token, pub_key, hardware_id, use_proxy)
+    async def process_start_session(self, token, pub_key: str, hardware_id: str, signature: str, use_proxy: bool):
+        node = await self.process_registering_node(token, pub_key, hardware_id, signature, use_proxy)
         if node:
             proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
             session = None
             while session is None:
-                session = await self.start_session(token, pub_key, proxy)
+                session = await self.start_session(token, pub_key, signature, proxy)
                 if not session:
-                    node = await self.process_registering_node(token, pub_key, hardware_id, use_proxy)
+                    node = await self.process_registering_node(token, pub_key, hardware_id, signature, use_proxy)
                     await asyncio.sleep(5)
                     continue
                 
@@ -886,7 +893,7 @@ class Bless:
                 
                 tasks = []
                 tasks.append(asyncio.create_task(self.process_get_node_earning(token, pub_key, use_proxy)))
-                tasks.append(asyncio.create_task(self.process_send_ping(token, pub_key, use_proxy)))
+                tasks.append(asyncio.create_task(self.process_send_ping(token, pub_key, signature, use_proxy)))
                 await asyncio.gather(*tasks)
         
     async def process_get_node_earning(self, token, pub_key: str, use_proxy: bool):
@@ -909,7 +916,7 @@ class Bless:
 
             await asyncio.sleep(15 * 60)
         
-    async def process_send_ping(self, token, pub_key: str, use_proxy: bool):
+    async def process_send_ping(self, token, pub_key: str, signature: str, use_proxy: bool):
         while True:
             proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
             print(
@@ -920,7 +927,7 @@ class Bless:
                 flush=True
             )
 
-            ping = await self.send_ping(token, pub_key, proxy)
+            ping = await self.send_ping(token, pub_key, signature, proxy)
             if ping:
                 self.print_message(token, pub_key, proxy, Fore.GREEN, f"PING Success")
 
@@ -938,9 +945,10 @@ class Bless:
         for node in nodes:
             pub_key = node.get('PubKey')
             hardware_id = node.get('HardwareId')
+            signature = self.generate_signature()
 
             if pub_key and hardware_id:
-                tasks.append(asyncio.create_task(self.process_start_session(token, pub_key, hardware_id, use_proxy)))
+                tasks.append(asyncio.create_task(self.process_start_session(token, pub_key, hardware_id, signature, use_proxy)))
 
         await asyncio.gather(*tasks)
 
