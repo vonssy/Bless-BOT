@@ -34,67 +34,30 @@ Bless BOT
 
 ## Configuration
 
-### Screenshots
-
-<div style="text-align: center;">
-  <h4><strong>PubKey & HardwareId</strong></h4>
-  <img src="image.png" alt="Image" width="500"/>
-</div>
-
 - **accounts.json:** You will find the file `accounts.json` inside the project directory. Make sure `accounts.json` contains data that matches the format expected by the script. Here are examples of file formats:
   ```bash
-  [
-      {
-          "Token": "Your Bearer Token 1",
-          "Nodes": [
-              {
-                  "PubKey": "Your PubKey 1",
-                  "HardwareId": "Your HardwareId 1"
-              },
-              {
-                  "PubKey": "Your PubKey 2",
-                  "HardwareId": "Your HardwareId 2"
-              },
-              {
-                  "PubKey": "Your PubKey 3",
-                  "HardwareId": "Your HardwareId 3"
-              },
-              {
-                  "PubKey": "Your PubKey 4",
-                  "HardwareId": "Your HardwareId 4"
-              },
-              {
-                  "PubKey": "Your PubKey 5",
-                  "HardwareId": "Your HardwareId 5"
-              }
-          ]
-      },
-      {
-          "Token": "Your Bearer Token 2",
-          "Nodes": [
-              {
-                  "PubKey": "Your PubKey 1",
-                  "HardwareId": "Your HardwareId 1"
-              },
-              {
-                  "PubKey": "Your PubKey 2",
-                  "HardwareId": "Your HardwareId 2"
-              },
-              {
-                  "PubKey": "Your PubKey 3",
-                  "HardwareId": "Your HardwareId 3"
-              },
-              {
-                  "PubKey": "Your PubKey 4",
-                  "HardwareId": "Your HardwareId 4"
-              },
-              {
-                  "PubKey": "Your PubKey 5",
-                  "HardwareId": "Your HardwareId 5"
-              }
-          ]
-      }
-  ]
+    [
+        {
+            "Token": "Your Bearer Token 1",
+            "PubKeys": [
+                "Your Pub Key 1",
+                "Your Pub Key 2",
+                "Your Pub Key 3",
+                "Your Pub Key 4",
+                "Your Pub Key 5"
+            ]
+        },
+        {
+            "Token": "Your Bearer Token 2",
+            "PubKeys": [
+                "Your Pub Key 1",
+                "Your Pub Key 2",
+                "Your Pub Key 3",
+                "Your Pub Key 4",
+                "Your Pub Key 5"
+            ]
+        }
+    ]
   ```
 
 - **proxy.txt:** You will find the file `proxy.txt` inside the project directory. Make sure `proxy.txt` contains data that matches the format expected by the script. Here are examples of file formats:

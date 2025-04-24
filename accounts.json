@@ -1,52 +1,22 @@
 [
     {
         "Token": "Your Bearer Token 1",
-        "Nodes": [
-            {
-                "PubKey": "Your Pub Key 1",
-                "HardwareId": "Your Hardware ID 1"
-            },
-            {
-                "PubKey": "Your Pub Key 2",
-                "HardwareId": "Your Hardware ID 2"
-            },
-            {
-                "PubKey": "Your Pub Key 3",
-                "HardwareId": "Your Hardware ID 3"
-            },
-            {
-                "PubKey": "Your Pub Key 4",
-                "HardwareId": "Your Hardware ID 4"
-            },
-            {
-                "PubKey": "Your Pub Key 5",
-                "HardwareId": "Your Hardware ID 5"
-            }
+        "PubKeys": [
+            "Your Pub Key 1",
+            "Your Pub Key 2",
+            "Your Pub Key 3",
+            "Your Pub Key 4",
+            "Your Pub Key 5"
         ]
     },
     {
         "Token": "Your Bearer Token 2",
-        "Nodes": [
-            {
-                "PubKey": "Your Pub Key 1",
-                "HardwareId": "Your Hardware ID 1"
-            },
-            {
-                "PubKey": "Your Pub Key 2",
-                "HardwareId": "Your Hardware ID 2"
-            },
-            {
-                "PubKey": "Your Pub Key 3",
-                "HardwareId": "Your Hardware ID 3"
-            },
-            {
-                "PubKey": "Your Pub Key 4",
-                "HardwareId": "Your Hardware ID 4"
-            },
-            {
-                "PubKey": "Your Pub Key 5",
-                "HardwareId": "Your Hardware ID 5"
-            }
+        "PubKeys": [
+            "Your Pub Key 1",
+            "Your Pub Key 2",
+            "Your Pub Key 3",
+            "Your Pub Key 4",
+            "Your Pub Key 5"
         ]
     }
 ]
