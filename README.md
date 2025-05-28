@@ -1,17 +1,19 @@
-# Bless BOT
-Bless BOT
+# Bless Network BOT
+Bless Network BOT
 
-- Register Here : [Bless](https://bless.network/dashboard?ref=BPSZ9G)
-- Use Code: BPSZ9G
+- Register Here : [Bless Network](https://bless.network/dashboard?ref=BPSZ9G)
+- Use Code `BPSZ9G`
 
 ## Features
 
   - Auto Get Account Information
-  - Auto Run With [Monosans](https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt) Proxy - Choose 1
-  - Auto Run With Private Proxy - Choose 2
-  - Auto Run Without Proxy - Choose 3
+  - Auto Run With [Monosans](https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt) Proxy - `Choose 1`
+  - Auto Run With Private Proxy - `Choose 2`
+  - Auto Run Without Proxy - `Choose 3`
+  - Auto Rotate Invalid Proxies - `y` or `n`
   - Auto Send Ping Every 10 Minutes
-  - Multi Accounts & Multi Node With Threads
+  - Auto Update Node Uptime Every 30 Minutes
+  - Multi Accounts & Multi Nodes With Threads
 
 ## Requiremnets
 
@@ -29,34 +31,64 @@ Bless BOT
 
 2. **Install Requirements:**
    ```bash
-   pip install -r requirements.txt #or pip3 install -r requirements.txt
+   pip install -r requirements.txt # or pip3 install -r requirements.txt
    ```
 
 ## Configuration
 
 - **accounts.json:** You will find the file `accounts.json` inside the project directory. Make sure `accounts.json` contains data that matches the format expected by the script. Here are examples of file formats:
-  ```bash
+  ```json
     [
-        {
-            "Token": "Your Bearer Token 1",
-            "PubKeys": [
-                "Your Pub Key 1",
-                "Your Pub Key 2",
-                "Your Pub Key 3",
-                "Your Pub Key 4",
-                "Your Pub Key 5"
-            ]
-        },
-        {
-            "Token": "Your Bearer Token 2",
-            "PubKeys": [
-                "Your Pub Key 1",
-                "Your Pub Key 2",
-                "Your Pub Key 3",
-                "Your Pub Key 4",
-                "Your Pub Key 5"
-            ]
-        }
+      {
+          "B7S_AUTH_TOKEN": "your_b7s_auth_token_account_1",
+          "Nodes": [
+              {
+                  "PubKey": "your_pubkey_1_account_1",
+                  "HardwareId": "your_hardware_id_1_account_1"
+              },
+              {
+                  "PubKey": "your_pubkey_2_account_1",
+                  "HardwareId": "your_hardware_id_1_account_1"
+              },
+              {
+                  "PubKey": "your_pubkey_3_account_1",
+                  "HardwareId": "your_hardware_id_1_account_1"
+              },
+              {
+                  "PubKey": "your_pubkey_4_account_1",
+                  "HardwareId": "your_hardware_id_1_account_1"
+              },
+              {
+                  "PubKey": "your_pubkey_5_account_1",
+                  "HardwareId": "your_hardware_id_1_account_1"
+              }
+          ]
+      },
+      {
+          "B7S_AUTH_TOKEN": "your_b7s_auth_token_account_2",
+          "Nodes": [
+              {
+                  "PubKey": "your_pubkey_1_account_2",
+                  "HardwareId": "your_hardware_id_1_account_2"
+              },
+              {
+                  "PubKey": "your_pubkey_2_account_2",
+                  "HardwareId": "your_hardware_id_1_account_2"
+              },
+              {
+                  "PubKey": "your_pubkey_3_account_2",
+                  "HardwareId": "your_hardware_id_1_account_2"
+              },
+              {
+                  "PubKey": "your_pubkey_4_account_2",
+                  "HardwareId": "your_hardware_id_1_account_2"
+              },
+              {
+                  "PubKey": "your_pubkey_5_account_2",
+                  "HardwareId": "your_hardware_id_1_account_2"
+              }
+          ]
+      }
     ]
   ```
 
@@ -70,7 +102,13 @@ Bless BOT
 ## Run
 
 ```bash
-python bot.py #or python3 bot.py
+python bot.py # or python3 bot.py
+```
+
+## Read
+- **Note:** For hardware id, u can use `gen_hardware_id.py` or use your own. The generated hardware id will be saved to `hardware_ids.txt`.
+```bash
+python gen_hardware_id.py # or python3 gen_hardware_id.py
 ```
 
 ## Buy Me a Coffee

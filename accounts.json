@@ -1,22 +1,52 @@
 [
     {
-        "Token": "Your Bearer Token 1",
-        "PubKeys": [
-            "Your Pub Key 1",
-            "Your Pub Key 2",
-            "Your Pub Key 3",
-            "Your Pub Key 4",
-            "Your Pub Key 5"
+        "B7S_AUTH_TOKEN": "your_b7s_auth_token_account_1",
+        "Nodes": [
+            {
+                "PubKey": "your_pubkey_1_account_1",
+                "HardwareId": "your_hardware_id_1_account_1"
+            },
+            {
+                "PubKey": "your_pubkey_2_account_1",
+                "HardwareId": "your_hardware_id_1_account_1"
+            },
+            {
+                "PubKey": "your_pubkey_3_account_1",
+                "HardwareId": "your_hardware_id_1_account_1"
+            },
+            {
+                "PubKey": "your_pubkey_4_account_1",
+                "HardwareId": "your_hardware_id_1_account_1"
+            },
+            {
+                "PubKey": "your_pubkey_5_account_1",
+                "HardwareId": "your_hardware_id_1_account_1"
+            }
         ]
     },
     {
-        "Token": "Your Bearer Token 2",
-        "PubKeys": [
-            "Your Pub Key 1",
-            "Your Pub Key 2",
-            "Your Pub Key 3",
-            "Your Pub Key 4",
-            "Your Pub Key 5"
+        "B7S_AUTH_TOKEN": "your_b7s_auth_token_account_2",
+        "Nodes": [
+            {
+                "PubKey": "your_pubkey_1_account_2",
+                "HardwareId": "your_hardware_id_1_account_2"
+            },
+            {
+                "PubKey": "your_pubkey_2_account_2",
+                "HardwareId": "your_hardware_id_1_account_2"
+            },
+            {
+                "PubKey": "your_pubkey_3_account_2",
+                "HardwareId": "your_hardware_id_1_account_2"
+            },
+            {
+                "PubKey": "your_pubkey_4_account_2",
+                "HardwareId": "your_hardware_id_1_account_2"
+            },
+            {
+                "PubKey": "your_pubkey_5_account_2",
+                "HardwareId": "your_hardware_id_1_account_2"
+            }
         ]
     }
 ]

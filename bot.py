@@ -1,4 +1,7 @@
-from curl_cffi import requests
+from aiohttp import (
+    ClientSession, ClientTimeout, ClientResponseError
+)
+from aiohttp_socks import ProxyConnector
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
@@ -18,12 +21,12 @@ class Bless:
             "User-Agent": FakeUserAgent().random
         }
         self.BASE_API = "https://gateway-run.bls.dev/api/v1"
-        self.IP_URL = "https://ip-check.bless.network/"
-        self.EXTENSION_VERSION = "0.1.8"
-        self.EXTENSION_SIGNATURES = {}
         self.proxies = []
         self.proxy_index = 0
         self.account_proxies = {}
+        self.auth_tokens = {}
+        self.ip_address = {}
+        self.signatures = {}
 
     def clear_terminal(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -69,12 +72,13 @@ class Bless:
         filename = "proxy.txt"
         try:
             if use_proxy_choice == 1:
-                response = await asyncio.to_thread(requests.get, "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt")
-                response.raise_for_status()
-                content = response.text
-                with open(filename, 'w') as f:
-                    f.write(content)
-                self.proxies = content.splitlines()
+                async with ClientSession(timeout=ClientTimeout(total=30)) as session:
+                    async with session.get("https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt") as response:
+                        response.raise_for_status()
+                        content = await response.text()
+                        with open(filename, 'w') as f:
+                            f.write(content)
+                        self.proxies = content.splitlines()
             else:
                 if not os.path.exists(filename):
                     self.log(f"{Fore.RED + Style.BRIGHT}File {filename} Not Found.{Style.RESET_ALL}")
@@ -118,7 +122,7 @@ class Bless:
         self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
         return proxy
     
-    def decode_token(self, token: str):
+    def decode_auth_token(self, token: str):
         try:
             header, payload, signature = token.split(".")
             decoded_payload = base64.urlsafe_b64decode(payload + "==").decode("utf-8")
@@ -128,7 +132,7 @@ class Bless:
             return address
         except Exception as e:
             return None
-
+        
     def generate_hardware_info(self):
         cpu_models = [
             "AMD Ryzen 9 5900HS", "Intel Core i7-10700K", "AMD Ryzen 5 3600",
@@ -701,26 +705,26 @@ class Bless:
         cpu_features = random.sample(all_features, k=random.randint(4, len(all_features)))
         
         return {
-            "cpuArchitecture":"x86_64",
-            "cpuModel":random.choice(cpu_models),
+            "cpuArchitecture": "x86_64",
+            "cpuModel": random.choice(cpu_models),
             "cpuFeatures": cpu_features,
-            "numOfProcessors":len(cpu_features) * 2,
-            "totalMemory":random.randint(8 * 1024**3, 64 * 1024**3)
+            "numOfProcessors": len(cpu_features) * 2,
+            "totalMemory": random.randint(8 * 1024**3, 64 * 1024**3)
         }
     
     def generate_hardware_id(self):
         hardware_id = ''.join(random.choices(string.hexdigits.lower(), k=64))
         return hardware_id
     
-    def generate_payload(self, hardware_id: str, ip_address: str):
+    def generate_payload(self, pubkey: str, hardware_id: str):
         return {
-            "ipAddress":ip_address,
-            "hardwareId":hardware_id,
-            "hardwareInfo":self.generate_hardware_info(),
-            "extensionVersion":self.EXTENSION_VERSION
+            "ipAddress": self.ip_address[pubkey],
+            "hardwareId": hardware_id,
+            "hardwareInfo": self.generate_hardware_info(),
+            "extensionVersion": "0.1.8"
         }
     
-    def generate_extension_signature(self):
+    def generate_signature(self):
         random_data = os.urandom(32)
         hash_object = hashlib.sha512(random_data)
         return hash_object.hexdigest()
@@ -744,14 +748,14 @@ class Bless:
             f"{color + Style.BRIGHT}{message}{Style.RESET_ALL}"
             f"{Fore.CYAN + Style.BRIGHT} ]{Style.RESET_ALL}"
         )
-
+        
     def print_question(self):
         while True:
             try:
-                print("1. Run With Monosans Proxy")
-                print("2. Run With Private Proxy")
-                print("3. Run Without Proxy")
-                choose = int(input("Choose [1/2/3] -> ").strip())
+                print(f"{Fore.WHITE + Style.BRIGHT}1. Run With Monosans Proxy{Style.RESET_ALL}")
+                print(f"{Fore.WHITE + Style.BRIGHT}2. Run With Private Proxy{Style.RESET_ALL}")
+                print(f"{Fore.WHITE + Style.BRIGHT}3. Run Without Proxy{Style.RESET_ALL}")
+                choose = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2/3] -> {Style.RESET_ALL}").strip())
 
                 if choose in [1, 2, 3]:
                     proxy_type = (
@@ -760,231 +764,249 @@ class Bless:
                         "Run Without Proxy"
                     )
                     print(f"{Fore.GREEN + Style.BRIGHT}{proxy_type} Selected.{Style.RESET_ALL}")
-                    return choose
+                    break
                 else:
                     print(f"{Fore.RED + Style.BRIGHT}Please enter either 1, 2 or 3.{Style.RESET_ALL}")
             except ValueError:
                 print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter a number (1, 2 or 3).{Style.RESET_ALL}")
 
-    async def check_ip_address(self, pub_key: str, address: str, proxy=None, retries=5):
-        for attempt in range(retries):
-            try:
-                response = await asyncio.to_thread(requests.get, url=self.IP_URL, headers=self.headers, proxy=proxy, timeout=60, impersonate="chrome110")
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
-                if attempt < retries - 1:
-                    await asyncio.sleep(5)
-                    continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"GET IP Address Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+        rotate = False
+        if choose in [1, 2]:
+            while True:
+                rotate = input(f"{Fore.BLUE + Style.BRIGHT}Rotate Invalid Proxy? [y/n] -> {Style.RESET_ALL}").strip()
+
+                if rotate in ["y", "n"]:
+                    rotate = rotate == "y"
+                    break
+                else:
+                    print(f"{Fore.RED + Style.BRIGHT}Invalid input. Enter 'y' or 'n'.{Style.RESET_ALL}")
+
+        return choose, rotate
     
-    async def node_uptime(self, token: str, pub_key: str, address: str, proxy=None, retries=5):
+    async def check_connection(self, address: str, pubkey: str, proxy=None):
+        connector = ProxyConnector.from_url(proxy) if proxy else None
+        try:
+            async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                async with session.get(url="https://ip-check.bless.network/", headers=self.headers) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except (Exception, ClientResponseError) as e:
+            return self.print_message(address, pubkey, proxy, Fore.RED, f"Connection Not 200 OK: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+        
+    async def node_uptime(self, address: str, pub_key: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pub_key}"
         headers = {
             **self.headers,
-            "Authorization": f"Bearer {token}"
+            "Authorization": f"Bearer {self.auth_tokens[address]}"
         }
         for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="chrome110")
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.get(url=url, headers=headers) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
                 return self.print_message(address, pub_key, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def registering_node(self, token: str, pub_key: str, address: str, hardware_id: str, ip_address: str, proxy=None, retries=5):
+    async def register_node(self, address: str, pub_key: str, hardware_id: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pub_key}"
-        data = json.dumps(self.generate_payload(hardware_id, ip_address))
+        data = json.dumps(self.generate_payload(pub_key, hardware_id))
         headers = {
             **self.headers,
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.EXTENSION_SIGNATURES[pub_key],
-            "X-Extension-Version": self.EXTENSION_VERSION
+            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, data=data) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
                 return self.print_message(address, pub_key, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def start_session(self, token: str, pub_key: str, address: str, proxy=None, retries=5):
+    async def start_session(self, address: str, pub_key: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pub_key}/start-session"
         headers = {
             **self.headers,
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": "2",
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.EXTENSION_SIGNATURES[pub_key],
-            "X-Extension-Version": self.EXTENSION_VERSION
+            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, json={}) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"Node Not Connected: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(address, pub_key, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def send_ping(self, token: str, pub_key: str, address: str, use_proxy: bool, proxy=None, retries=5):
+    async def send_ping(self, address: str, pub_key: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pub_key}/ping"
         data = json.dumps({"isB7SConnected":True})
         headers = {
             **self.headers,
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.EXTENSION_SIGNATURES[pub_key],
-            "X-Extension-Version": self.EXTENSION_VERSION
+            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
+            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
-                response.raise_for_status()
-                return response.json()
-            except Exception as e:
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, data=data) as response:
+                        response.raise_for_status()
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                self.print_message(address, pub_key, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
-                if not any(code in str(e) for code in ["500", "501", "502", "503", "504"]):
-                    proxy = self.rotate_proxy_for_account(pub_key) if use_proxy else None
-                return None
+                return self.print_message(address, pub_key, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
         
-    async def process_get_node_uptime(self, token: str, pub_key: str, address: str, use_proxy: bool):
+    async def process_check_connection(self, address: str, pubkey: str, use_proxy: bool, rotate_proxy: bool):
+        proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
+
+        if rotate_proxy:
+            while True:
+                is_valid = await self.check_connection(address, pubkey, proxy)
+                if not is_valid:
+                    proxy = self.rotate_proxy_for_account(pubkey) if use_proxy else None
+                    await asyncio.sleep(5)
+                    continue
+
+                self.ip_address[pubkey] = is_valid["ip"]
+                self.signatures[pubkey] = self.generate_signature()
+
+                self.print_message(address, pubkey, proxy, Fore.GREEN, "Connection 200 OK")
+                return True
+
         while True:
-            proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
-
-            today_reward = "N/A"
-            total_reward = "N/A"
-
-            node = await self.node_uptime(token, pub_key, address, proxy)
-            if node:
-                today_reward = node.get("todayReward")
-                total_reward = node.get("totalReward")
-
-            self.print_message(address, pub_key, proxy, Fore.GREEN, "Uptime Updated"
-                f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
-                f"{Fore.CYAN + Style.BRIGHT}Uptime Today:{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} {today_reward} Minutes {Style.RESET_ALL}"
-                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                f"{Fore.CYAN + Style.BRIGHT} Uptime Total: {Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT}{total_reward} Minutes{Style.RESET_ALL}"
-            )
-
-            await asyncio.sleep(30 * 60)
-
-    async def process_send_ping(self, token: str, pub_key: str, address: str, use_proxy: bool):
-        while True:
-            proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
-
-            print(
-                f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.BLUE + Style.BRIGHT}Try to Sent Ping...{Style.RESET_ALL}                                         ",
-                end="\r",
-                flush=True
-            )
-
-            ping = await self.send_ping(token, pub_key, address, proxy)
-            if ping:
-                self.print_message(address, pub_key, proxy, Fore.GREEN, "PING Success")
-
-            self.EXTENSION_SIGNATURES[pub_key] = self.generate_extension_signature()
-
-            print(
-                f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.BLUE + Style.BRIGHT}Wait For 10 Minutes For Next Ping...{Style.RESET_ALL}",
-                end="\r"
-            )
-               
-            await asyncio.sleep(10 * 60)
-
-    async def process_check_ip_address(self, pub_key: str, address: str, use_proxy: bool):
-        proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
-
-        checked = None
-        while checked is None:
-            checked = await self.check_ip_address(pub_key, address, proxy)
-            if not checked:
-                proxy = self.rotate_proxy_for_account(pub_key) if use_proxy else None
+            is_valid = await self.check_connection(address, pubkey, proxy)
+            if not is_valid:
                 await asyncio.sleep(5)
                 continue
 
-            ip_address = checked.get("ip")
-
-            self.print_message(address, pub_key, proxy, Fore.GREEN, "Checking IP Address Success "
-                f"{Fore.MAGENTA+Style.BRIGHT}-{Style.RESET_ALL}"
-                f"{Fore.CYAN+Style.BRIGHT} IP: {Style.RESET_ALL}"
-                f"{Fore.WHITE+Style.BRIGHT}{ip_address}{Style.RESET_ALL}"
-            )
-
-            return ip_address
+            self.ip_address[pubkey] = is_valid["ip"]
+            self.signatures[pubkey] = self.generate_signature()
+            
+            self.print_message(address, pubkey, proxy, Fore.GREEN, "Connection 200 OK")
+            return True
         
-    async def process_registering_node(self, token: str, pub_key: str, address: str, hardware_id: str, use_proxy: bool):
-        ip_address = await self.process_check_ip_address(pub_key, address, use_proxy)
-        if ip_address:
-            proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
+    async def process_register_node(self, address: str, pubkey: str, hardware_id: str, use_proxy: bool):
+        proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
 
-            registered = None
-            while registered is None:
-                registered = await self.registering_node(token, pub_key, address, hardware_id, ip_address, proxy)
-                if not registered:
-                    ip_address = await self.process_check_ip_address(token, pub_key, use_proxy)
-                    proxy = self.rotate_proxy_for_account(pub_key) if use_proxy else None
-                    await asyncio.sleep(5)
-                    continue
-
-                self.print_message(address, pub_key, proxy, Fore.GREEN, "Registering Node Success")
-
+        while True:
+            registered = await self.register_node(address, pubkey, hardware_id, proxy)
+            if registered:
+                self.print_message(address, pubkey, proxy, Fore.GREEN, "Registering Node Success")
                 return True
             
-    async def process_start_session(self, token: str, pub_key: str, address: str, hardware_id: str, use_proxy: bool):
-        is_registered = await self.process_registering_node(token, pub_key, address, hardware_id, use_proxy)
+            await asyncio.sleep(5)
+            continue
+        
+    async def process_start_session(self, address: str, pubkey: str, hardware_id: str, use_proxy: bool):
+        is_registered = await self.process_register_node(address, pubkey, hardware_id, use_proxy)
         if is_registered:
+            proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
+
+            while True:
+                started = await self.start_session(address, pubkey, proxy)
+                if started and started.get("status") == "ok":
+                    self.print_message(address, pubkey, proxy, Fore.GREEN, "Starting Session Success")
+                    return True
+                
+                await asyncio.sleep(5)
+                continue 
+            
+    async def process_send_ping(self, address: str, pub_key: str, hardware_id: str, use_proxy: bool):
+        is_session_started = await self.process_start_session(address, pub_key, hardware_id, use_proxy)
+        if is_session_started:
+            while True:
+                proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
+
+                print(
+                    f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}Try to Sent Ping...{Style.RESET_ALL}                                         ",
+                    end="\r",
+                    flush=True
+                )
+
+                ping = await self.send_ping(address, pub_key, proxy)
+                if ping:
+                    status = ping.get("status")
+
+                    if status == "ok":
+                        self.print_message(address, pub_key, proxy, Fore.GREEN, "PING Success")
+                    else:
+                        self.print_message(address, pub_key, proxy, Fore.RED, "PING Failed")
+
+                print(
+                    f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}Wait For 10 Minutes For Next Ping...{Style.RESET_ALL}",
+                    end="\r"
+                )
+                
+                await asyncio.sleep(10 * 60)
+        
+    async def process_get_node_uptime(self, address: str, pub_key: str, use_proxy: bool):
+        while True:
             proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
 
-            connected = None
-            while connected is None:
-                connected = await self.start_session(token, pub_key, proxy)
-                if not connected:
-                    await self.process_registering_node(token, pub_key, address, hardware_id, use_proxy)
-                    await asyncio.sleep(5)
-                    continue
-                
-                self.print_message(address, pub_key, proxy, Fore.GREEN, f"Node Connected")
+            node = await self.node_uptime(address, pub_key, proxy)
+            if node:
+                today_reward = node.get("todayReward", 0)
+                total_reward = node.get("totalReward", 0)
 
-                tasks = [
-                    asyncio.create_task(self.process_get_node_uptime(token, pub_key, address, use_proxy)),
-                    asyncio.create_task(self.process_send_ping(token, pub_key, address, use_proxy))
-                ]
+                self.print_message(address, pub_key, proxy, Fore.GREEN, "Uptime Updated"
+                    f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                    f"{Fore.CYAN + Style.BRIGHT}Uptime Today:{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} {today_reward} Minutes {Style.RESET_ALL}"
+                    f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+                    f"{Fore.CYAN + Style.BRIGHT} Uptime Total: {Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT}{total_reward} Minutes{Style.RESET_ALL}"
+                )
 
-                await asyncio.gather(*tasks)
-                
-    async def process_accounts(self, token: str, pub_keys: dict, address: str, use_proxy: bool):
-        tasks = []
-        for pub_key in pub_keys:
-            if pub_key:
-                hardware_id = self.generate_hardware_id()
-                self.EXTENSION_SIGNATURES[pub_key] = self.generate_extension_signature()
+            await asyncio.sleep(30 * 60)
 
-                tasks.append(asyncio.create_task(self.process_start_session(token, pub_key, address, hardware_id, use_proxy)))
+    async def process_accounts(self, address: str, nodes: list, use_proxy: bool, rotate_proxy: bool):
 
+        async def process_node_session(node):
+            pubkey = node.get("PubKey")
+            hardware_id = node.get("HardwareId")
+
+            if not pubkey or not hardware_id:
+                return
+
+            checked = await self.process_check_connection(address, pubkey, use_proxy, rotate_proxy)
+            if checked:
+                asyncio.create_task(self.process_get_node_uptime(address, pubkey, use_proxy))
+                asyncio.create_task(self.process_send_ping(address, pubkey, hardware_id, use_proxy))
+
+        tasks = [asyncio.create_task(process_node_session(node)) for node in nodes if node]
         await asyncio.gather(*tasks)
-
+        
     async def main(self):
         try:
             accounts = self.load_accounts()
@@ -992,7 +1014,7 @@ class Bless:
                 self.log(f"{Fore.RED}No Accounts Loaded.{Style.RESET_ALL}")
                 return
 
-            use_proxy_choice = self.print_question()
+            use_proxy_choice, rotate_proxy = self.print_question()
 
             use_proxy = False
             if use_proxy_choice in [1, 2]:
@@ -1008,26 +1030,29 @@ class Bless:
             if use_proxy:
                 await self.load_proxies(use_proxy_choice)
 
-            self.log(f"{Fore.CYAN + Style.BRIGHT}-{Style.RESET_ALL}"*75)
+            self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*75)
 
-            while True:
-                tasks = []
-                for account in accounts:
-                    if account:
-                        token = account.get("Token")
-                        pub_keys = account.get("PubKeys", [])
 
-                        if token and pub_keys:
-                            address = self.decode_token(token)
+            tasks = []
+            for account in accounts:
+                if account:
+                    auth_token = account["B7S_AUTH_TOKEN"]
+                    nodes = account["Nodes"]
 
-                            if address:
-                                tasks.append(asyncio.create_task(self.process_accounts(token, pub_keys, address, use_proxy)))
+                    if not auth_token or not nodes:
+                        continue
 
-                await asyncio.gather(*tasks)
-                await asyncio.sleep(10)
+                    address = self.decode_auth_token(auth_token)
+                    if address:
+                        self.auth_tokens[address] = auth_token
+
+                        tasks.append(asyncio.create_task(self.process_accounts(address, nodes, use_proxy, rotate_proxy)))
+
+            await asyncio.gather(*tasks)
 
         except Exception as e:
             self.log(f"{Fore.RED+Style.BRIGHT}Error: {e}{Style.RESET_ALL}")
+            raise e
 
 if __name__ == "__main__":
     try:
