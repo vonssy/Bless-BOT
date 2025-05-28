@@ -991,6 +991,7 @@ class Bless:
             await asyncio.sleep(30 * 60)
 
     async def process_accounts(self, address: str, nodes: list, use_proxy: bool, rotate_proxy: bool):
+        tasks = []
 
         async def process_node_session(node):
             pubkey = node.get("PubKey")
@@ -1001,10 +1002,11 @@ class Bless:
 
             checked = await self.process_check_connection(address, pubkey, use_proxy, rotate_proxy)
             if checked:
-                asyncio.create_task(self.process_get_node_uptime(address, pubkey, use_proxy))
-                asyncio.create_task(self.process_send_ping(address, pubkey, hardware_id, use_proxy))
+                tasks.append(asyncio.create_task(self.process_get_node_uptime(address, pubkey, use_proxy)))
+                tasks.append(asyncio.create_task(self.process_send_ping(address, pubkey, hardware_id, use_proxy)))
 
-        tasks = [asyncio.create_task(process_node_session(node)) for node in nodes if node]
+        await asyncio.gather(*[process_node_session(node) for node in nodes if node])
+
         await asyncio.gather(*tasks)
         
     async def main(self):
