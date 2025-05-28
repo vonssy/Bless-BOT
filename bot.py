@@ -793,8 +793,8 @@ class Bless:
         except (Exception, ClientResponseError) as e:
             return self.print_message(address, pubkey, proxy, Fore.RED, f"Connection Not 200 OK: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
         
-    async def node_uptime(self, address: str, pub_key: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/nodes/{pub_key}"
+    async def node_uptime(self, address: str, pubkey: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/nodes/{pubkey}"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.auth_tokens[address]}"
@@ -810,17 +810,17 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(address, pubkey, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def register_node(self, address: str, pub_key: str, hardware_id: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/nodes/{pub_key}"
-        data = json.dumps(self.generate_payload(pub_key, hardware_id))
+    async def register_node(self, address: str, pubkey: str, hardware_id: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/nodes/{pubkey}"
+        data = json.dumps(self.generate_payload(pubkey, hardware_id))
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Signature": self.signatures[pubkey],
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
@@ -834,16 +834,16 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(address, pubkey, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def start_session(self, address: str, pub_key: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/nodes/{pub_key}/start-session"
+    async def start_session(self, address: str, pubkey: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/nodes/{pubkey}/start-session"
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": "2",
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Signature": self.signatures[pubkey],
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
@@ -857,17 +857,17 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(address, pubkey, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
     
-    async def send_ping(self, address: str, pub_key: str, proxy=None, retries=5):
-        url = f"{self.BASE_API}/nodes/{pub_key}/ping"
+    async def send_ping(self, address: str, pubkey: str, proxy=None, retries=5):
+        url = f"{self.BASE_API}/nodes/{pubkey}/ping"
         data = json.dumps({"isB7SConnected":True})
         headers = {
             **self.headers,
             "Authorization": f"Bearer {self.auth_tokens[address]}",
             "Content-Length": str(len(data)),
             "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pub_key],
+            "X-Extension-Signature": self.signatures[pubkey],
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
@@ -875,13 +875,17 @@ class Bless:
             try:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.post(url=url, headers=headers, data=data) as response:
+                        if response.status == 429:
+                            self.signatures[pubkey] = self.generate_signature()
+                            headers["X-Extension-Signature"] = self.signatures[pubkey]
+                            continue
                         response.raise_for_status()
                         return await response.json()
             except (Exception, ClientResponseError) as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pub_key, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                return self.print_message(address, pubkey, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
         
     async def process_check_connection(self, address: str, pubkey: str, use_proxy: bool, rotate_proxy: bool):
         proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
@@ -938,11 +942,11 @@ class Bless:
                 await asyncio.sleep(5)
                 continue 
             
-    async def process_send_ping(self, address: str, pub_key: str, hardware_id: str, use_proxy: bool):
-        is_session_started = await self.process_start_session(address, pub_key, hardware_id, use_proxy)
+    async def process_send_ping(self, address: str, pubkey: str, hardware_id: str, use_proxy: bool):
+        is_session_started = await self.process_start_session(address, pubkey, hardware_id, use_proxy)
         if is_session_started:
             while True:
-                proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
+                proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
 
                 print(
                     f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
@@ -952,14 +956,14 @@ class Bless:
                     flush=True
                 )
 
-                ping = await self.send_ping(address, pub_key, proxy)
+                ping = await self.send_ping(address, pubkey, proxy)
                 if ping:
                     status = ping.get("status")
 
                     if status == "ok":
-                        self.print_message(address, pub_key, proxy, Fore.GREEN, "PING Success")
+                        self.print_message(address, pubkey, proxy, Fore.GREEN, "PING Success")
                     else:
-                        self.print_message(address, pub_key, proxy, Fore.RED, "PING Failed")
+                        self.print_message(address, pubkey, proxy, Fore.RED, "PING Failed")
 
                 print(
                     f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
@@ -970,16 +974,16 @@ class Bless:
                 
                 await asyncio.sleep(10 * 60)
         
-    async def process_get_node_uptime(self, address: str, pub_key: str, use_proxy: bool):
+    async def process_get_node_uptime(self, address: str, pubkey: str, use_proxy: bool):
         while True:
-            proxy = self.get_next_proxy_for_account(pub_key) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
 
-            node = await self.node_uptime(address, pub_key, proxy)
+            node = await self.node_uptime(address, pubkey, proxy)
             if node:
                 today_reward = node.get("todayReward", 0)
                 total_reward = node.get("totalReward", 0)
 
-                self.print_message(address, pub_key, proxy, Fore.GREEN, "Uptime Updated"
+                self.print_message(address, pubkey, proxy, Fore.GREEN, "Uptime Updated"
                     f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
                     f"{Fore.CYAN + Style.BRIGHT}Uptime Today:{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} {today_reward} Minutes {Style.RESET_ALL}"
