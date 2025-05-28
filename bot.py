@@ -1,7 +1,4 @@
-from aiohttp import (
-    ClientSession, ClientTimeout, ClientResponseError
-)
-from aiohttp_socks import ProxyConnector
+from curl_cffi import requests
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
@@ -72,13 +69,12 @@ class Bless:
         filename = "proxy.txt"
         try:
             if use_proxy_choice == 1:
-                async with ClientSession(timeout=ClientTimeout(total=30)) as session:
-                    async with session.get("https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt") as response:
-                        response.raise_for_status()
-                        content = await response.text()
-                        with open(filename, 'w') as f:
-                            f.write(content)
-                        self.proxies = content.splitlines()
+                response = await asyncio.to_thread(requests.get, "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt")
+                response.raise_for_status()
+                content = response.text
+                with open(filename, 'w') as f:
+                    f.write(content)
+                self.proxies = content.splitlines()
             else:
                 if not os.path.exists(filename):
                     self.log(f"{Fore.RED + Style.BRIGHT}File {filename} Not Found.{Style.RESET_ALL}")
@@ -784,13 +780,12 @@ class Bless:
         return choose, rotate
     
     async def check_connection(self, address: str, pubkey: str, proxy=None):
-        connector = ProxyConnector.from_url(proxy) if proxy else None
+        url = "https://ip-check.bless.network/"
         try:
-            async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                async with session.get(url="https://ip-check.bless.network/", headers=self.headers) as response:
-                    response.raise_for_status()
-                    return await response.json()
-        except (Exception, ClientResponseError) as e:
+            response = await asyncio.to_thread(requests.get, url=url, headers=self.headers, proxy=proxy, timeout=60, impersonate="chrome110")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
             return self.print_message(address, pubkey, proxy, Fore.RED, f"Connection Not 200 OK: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
         
     async def node_uptime(self, address: str, pubkey: str, proxy=None, retries=5):
@@ -800,13 +795,11 @@ class Bless:
             "Authorization": f"Bearer {self.auth_tokens[address]}"
         }
         for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.get(url=url, headers=headers) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
+                response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="chrome110")
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
@@ -824,13 +817,11 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, data=data) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
@@ -847,13 +838,11 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json={}) as response:
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
@@ -871,17 +860,15 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         for attempt in range(retries):
-            connector = ProxyConnector.from_url(proxy) if proxy else None
             try:
-                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, data=data) as response:
-                        if response.status == 429:
-                            self.signatures[pubkey] = self.generate_signature()
-                            headers["X-Extension-Signature"] = self.signatures[pubkey]
-                            continue
-                        response.raise_for_status()
-                        return await response.json()
-            except (Exception, ClientResponseError) as e:
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                if response.status_code == 429:
+                    self.signatures[pubkey] = self.generate_signature()
+                    headers["X-Extension-Signature"] = self.signatures[pubkey]
+                    continue
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue

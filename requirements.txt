@@ -1,5 +1,4 @@
-aiohttp
-aiohttp-socks
+curl-cffi
 fake-useragent
 colorama
 pytz
