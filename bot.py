@@ -69,18 +69,18 @@ class Bless:
         filename = "proxy.txt"
         try:
             if use_proxy_choice == 1:
-                response = await asyncio.to_thread(requests.get, "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt")
+                response = await asyncio.to_thread(requests.get, "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text")
                 response.raise_for_status()
                 content = response.text
                 with open(filename, 'w') as f:
                     f.write(content)
-                self.proxies = content.splitlines()
+                self.proxies = [line.strip() for line in content.splitlines() if line.strip()]
             else:
                 if not os.path.exists(filename):
                     self.log(f"{Fore.RED + Style.BRIGHT}File {filename} Not Found.{Style.RESET_ALL}")
                     return
                 with open(filename, 'r') as f:
-                    self.proxies = f.read().splitlines()
+                    self.proxies = [line.strip() for line in f.read().splitlines() if line.strip()]
             
             if not self.proxies:
                 self.log(f"{Fore.RED + Style.BRIGHT}No Proxies Found.{Style.RESET_ALL}")
@@ -748,18 +748,18 @@ class Bless:
     def print_question(self):
         while True:
             try:
-                print(f"{Fore.WHITE + Style.BRIGHT}1. Run With Monosans Proxy{Style.RESET_ALL}")
+                print(f"{Fore.WHITE + Style.BRIGHT}1. Run With Free Proxyscrape Proxy{Style.RESET_ALL}")
                 print(f"{Fore.WHITE + Style.BRIGHT}2. Run With Private Proxy{Style.RESET_ALL}")
                 print(f"{Fore.WHITE + Style.BRIGHT}3. Run Without Proxy{Style.RESET_ALL}")
                 choose = int(input(f"{Fore.BLUE + Style.BRIGHT}Choose [1/2/3] -> {Style.RESET_ALL}").strip())
 
                 if choose in [1, 2, 3]:
                     proxy_type = (
-                        "Run With Monosans Proxy" if choose == 1 else 
-                        "Run With Private Proxy" if choose == 2 else 
-                        "Run Without Proxy"
+                        "With Free Proxyscrape" if choose == 1 else 
+                        "With Private" if choose == 2 else 
+                        "Without"
                     )
-                    print(f"{Fore.GREEN + Style.BRIGHT}{proxy_type} Selected.{Style.RESET_ALL}")
+                    print(f"{Fore.GREEN + Style.BRIGHT}Run {proxy_type} Proxy Selected.{Style.RESET_ALL}")
                     break
                 else:
                     print(f"{Fore.RED + Style.BRIGHT}Please enter either 1, 2 or 3.{Style.RESET_ALL}")
@@ -819,6 +819,10 @@ class Bless:
         for attempt in range(retries):
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                if response.status_code == 429:
+                    self.signatures[pubkey] = self.generate_signature()
+                    headers["X-Extension-Signature"] = self.signatures[pubkey]
+                    continue
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -840,6 +844,10 @@ class Bless:
         for attempt in range(retries):
             try:
                 response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
+                if response.status_code == 429:
+                    self.signatures[pubkey] = self.generate_signature()
+                    headers["X-Extension-Signature"] = self.signatures[pubkey]
+                    continue
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -922,7 +930,7 @@ class Bless:
 
             while True:
                 started = await self.start_session(address, pubkey, proxy)
-                if started and started.get("status") == "ok":
+                if isinstance(started, dict) and started.get("status") == "ok":
                     self.print_message(address, pubkey, proxy, Fore.GREEN, "Starting Session Success")
                     return True
                 
@@ -944,13 +952,8 @@ class Bless:
                 )
 
                 ping = await self.send_ping(address, pubkey, proxy)
-                if ping:
-                    status = ping.get("status")
-
-                    if status == "ok":
-                        self.print_message(address, pubkey, proxy, Fore.GREEN, "PING Success")
-                    else:
-                        self.print_message(address, pubkey, proxy, Fore.RED, "PING Failed")
+                if isinstance(ping, dict) and ping.get("status") == "ok":
+                    self.print_message(address, pubkey, proxy, Fore.GREEN, "PING Success")
 
                 print(
                     f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
@@ -988,13 +991,11 @@ class Bless:
             pubkey = node.get("PubKey")
             hardware_id = node.get("HardwareId")
 
-            if not pubkey or not hardware_id:
-                return
-
-            checked = await self.process_check_connection(address, pubkey, use_proxy, rotate_proxy)
-            if checked:
-                tasks.append(asyncio.create_task(self.process_get_node_uptime(address, pubkey, use_proxy)))
-                tasks.append(asyncio.create_task(self.process_send_ping(address, pubkey, hardware_id, use_proxy)))
+            if pubkey and hardware_id:
+                checked = await self.process_check_connection(address, pubkey, use_proxy, rotate_proxy)
+                if checked:
+                    tasks.append(asyncio.create_task(self.process_get_node_uptime(address, pubkey, use_proxy)))
+                    tasks.append(asyncio.create_task(self.process_send_ping(address, pubkey, hardware_id, use_proxy)))
 
         await asyncio.gather(*[process_node_session(node) for node in nodes if node])
 
@@ -1025,21 +1026,38 @@ class Bless:
 
             self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*75)
 
-
             tasks = []
-            for account in accounts:
+            for idx, account in enumerate(accounts, start=1):
                 if account:
                     auth_token = account["B7S_AUTH_TOKEN"]
                     nodes = account["Nodes"]
 
                     if not auth_token or not nodes:
+                        self.log(
+                            f"{Fore.CYAN + Style.BRIGHT}[ Account: {Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT}{idx}{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}Status:{Style.RESET_ALL}"
+                            f"{Fore.RED + Style.BRIGHT} Invalid Account Data {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
+                        )
                         continue
 
                     address = self.decode_auth_token(auth_token)
-                    if address:
-                        self.auth_tokens[address] = auth_token
+                    if not address:
+                        self.log(
+                            f"{Fore.CYAN + Style.BRIGHT}[ Account: {Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT}{idx}{Style.RESET_ALL}"
+                            f"{Fore.MAGENTA + Style.BRIGHT} - {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}Status:{Style.RESET_ALL}"
+                            f"{Fore.RED + Style.BRIGHT} Invalid B7S Auth Token {Style.RESET_ALL}"
+                            f"{Fore.CYAN + Style.BRIGHT}]{Style.RESET_ALL}"
+                        )
+                        continue
 
-                        tasks.append(asyncio.create_task(self.process_accounts(address, nodes, use_proxy, rotate_proxy)))
+                    self.auth_tokens[address] = auth_token
+
+                    tasks.append(asyncio.create_task(self.process_accounts(address, nodes, use_proxy, rotate_proxy)))
 
             await asyncio.gather(*tasks)
 

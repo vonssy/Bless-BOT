@@ -7,7 +7,7 @@ Bless Network BOT
 ## Features
 
   - Auto Get Account Information
-  - Auto Run With [Monosans](https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt) Proxy - `Choose 1`
+  - Auto Run With [Free Proxyscrape](https://proxyscrape.com/free-proxy-list) Proxy - `Choose 1`
   - Auto Run With Private Proxy - `Choose 2`
   - Auto Run Without Proxy - `Choose 3`
   - Auto Rotate Invalid Proxies - `y` or `n`
@@ -33,6 +33,12 @@ Bless Network BOT
    ```bash
    pip install -r requirements.txt # or pip3 install -r requirements.txt
    ```
+
+## Read
+- **Note:** For hardware id, u can use `gen_hardware_id.py` or use your own. The generated hardware id will be saved to `hardware_ids.txt`.
+```bash
+python gen_hardware_id.py # or python3 gen_hardware_id.py
+```
 
 ## Configuration
 
@@ -103,12 +109,6 @@ Bless Network BOT
 
 ```bash
 python bot.py # or python3 bot.py
-```
-
-## Read
-- **Note:** For hardware id, u can use `gen_hardware_id.py` or use your own. The generated hardware id will be saved to `hardware_ids.txt`.
-```bash
-python gen_hardware_id.py # or python3 gen_hardware_id.py
 ```
 
 ## Buy Me a Coffee
