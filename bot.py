@@ -782,7 +782,7 @@ class Bless:
     async def check_connection(self, address: str, pubkey: str, proxy=None):
         url = "https://ip-check.bless.network/"
         try:
-            response = await asyncio.to_thread(requests.get, url=url, headers=self.headers, proxy=proxy, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.get, url=url, headers=self.headers, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -796,7 +796,7 @@ class Bless:
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="chrome110")
+                response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
@@ -818,7 +818,7 @@ class Bless:
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 if response.status_code == 429:
                     self.signatures[pubkey] = self.generate_signature()
                     headers["X-Extension-Signature"] = self.signatures[pubkey]
@@ -843,7 +843,7 @@ class Bless:
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110")
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 if response.status_code == 429:
                     self.signatures[pubkey] = self.generate_signature()
                     headers["X-Extension-Signature"] = self.signatures[pubkey]
@@ -869,7 +869,7 @@ class Bless:
         }
         for attempt in range(retries):
             try:
-                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110")
+                response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxy=proxy, timeout=60, impersonate="chrome110", verify=False)
                 if response.status_code == 429:
                     self.signatures[pubkey] = self.generate_signature()
                     headers["X-Extension-Signature"] = self.signatures[pubkey]
