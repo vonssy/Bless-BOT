@@ -786,7 +786,9 @@ class Bless:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            return self.print_message(address, pubkey, proxy, Fore.RED, f"Connection Not 200 OK: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+            self.print_message(address, pubkey, proxy, Fore.RED, f"Connection Not 200 OK: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
         
     async def node_uptime(self, address: str, pubkey: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pubkey}"
@@ -803,7 +805,9 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pubkey, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, pubkey, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def register_node(self, address: str, pubkey: str, hardware_id: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pubkey}"
@@ -829,7 +833,9 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pubkey, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, pubkey, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def start_session(self, address: str, pubkey: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pubkey}/start-session"
@@ -854,7 +860,9 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pubkey, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, pubkey, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
     
     async def send_ping(self, address: str, pubkey: str, proxy=None, retries=5):
         url = f"{self.BASE_API}/nodes/{pubkey}/ping"
@@ -880,7 +888,9 @@ class Bless:
                 if attempt < retries - 1:
                     await asyncio.sleep(5)
                     continue
-                return self.print_message(address, pubkey, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+                self.print_message(address, pubkey, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
+
+        return None
         
     async def process_check_connection(self, address: str, pubkey: str, use_proxy: bool, rotate_proxy: bool):
         proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
