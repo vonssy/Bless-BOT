@@ -43,6 +43,7 @@ USER_AGENT = [
 class Bless:
     def __init__(self) -> None:
         self.BASE_API = "https://gateway-run.bls.dev/api/v1"
+        self.VERSION = "0.1.8"
         self.HEADERS = {}
         self.proxies = []
         self.proxy_index = 0
@@ -199,7 +200,7 @@ class Bless:
             "ipAddress": self.ip_address[pubkey],
             "hardwareId": hardware_id,
             "hardwareInfo": self.generate_hardware_info(),
-            "extensionVersion": "0.1.8"
+            "extensionVersion": self.VERSION
         }
     
     def generate_signature(self):
@@ -266,9 +267,10 @@ class Bless:
     
     async def check_connection(self, address: str, pubkey: str, proxy=None):
         url = "https://ip-check.bless.network/"
+        headers = self.HEADERS[pubkey].copy()
         proxies = {"http":proxy, "https":proxy} if proxy else None
         try:
-            response = await asyncio.to_thread(requests.get, url=url, headers=self.HEADERS[pubkey], proxies=proxies, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxies=proxies, timeout=60, impersonate="chrome110", verify=False)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -277,14 +279,12 @@ class Bless:
         
     async def node_uptime(self, address: str, pubkey: str, proxy=None):
         url = f"{self.BASE_API}/nodes/{pubkey}"
-        headers = {
-            **self.HEADERS[pubkey],
-            "Authorization": f"Bearer {self.auth_tokens[address]}"
-        }
+        headers = self.HEADERS[pubkey].copy()
+        headers["Authorization"] = f"Bearer {self.auth_tokens[address]}"
         proxies = {"http":proxy, "https":proxy} if proxy else None
         await asyncio.sleep(3)
         try:
-            response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxies=proxies, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxies=proxies, timeout=60, impersonate="chrome110", verify=False)
             if response.status_code == 429:
                 self.print_message(address, pubkey, proxy, Fore.RED, f"GET Node Uptime Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
                 await asyncio.sleep(60)
@@ -299,18 +299,16 @@ class Bless:
     async def register_node(self, address: str, pubkey: str, hardware_id: str, proxy=None):
         url = f"{self.BASE_API}/nodes/{pubkey}"
         data = json.dumps(self.generate_payload(pubkey, hardware_id))
-        headers = {
-            **self.HEADERS[pubkey],
-            "Authorization": f"Bearer {self.auth_tokens[address]}",
-            "Content-Length": str(len(data)),
-            "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pubkey],
-            "X-Extension-Version": "0.1.8"
-        }
+        headers = self.HEADERS[pubkey].copy()
+        headers["Authorization"] = f"Bearer {self.auth_tokens[address]}"
+        headers["Content-Length"] = str(len(data))
+        headers["Content-type"] = "application/json"
+        headers["X-Extension-Signature"] = self.signatures[pubkey]
+        headers["X-Extension-Version"] = self.VERSION
         proxies = {"http":proxy, "https":proxy} if proxy else None
         await asyncio.sleep(3)
         try:
-            response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110", verify=False)
             if response.status_code == 429:
                 # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
@@ -325,18 +323,16 @@ class Bless:
     
     async def start_session(self, address: str, pubkey: str, proxy=None):
         url = f"{self.BASE_API}/nodes/{pubkey}/start-session"
-        headers = {
-            **self.HEADERS[pubkey],
-            "Authorization": f"Bearer {self.auth_tokens[address]}",
-            "Content-Length": "2",
-            "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pubkey],
-            "X-Extension-Version": "0.1.8"
-        }
+        headers = self.HEADERS[pubkey].copy()
+        headers["Authorization"] = f"Bearer {self.auth_tokens[address]}"
+        headers["Content-Length"] = "2"
+        headers["Content-type"] = "application/json"
+        headers["X-Extension-Signature"] = self.signatures[pubkey]
+        headers["X-Extension-Version"] = self.VERSION
         proxies = {"http":proxy, "https":proxy} if proxy else None
         await asyncio.sleep(3)
         try:
-            response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxies=proxies, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxies=proxies, timeout=60, impersonate="chrome110", verify=False)
             if response.status_code == 429:
                 # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
@@ -352,18 +348,16 @@ class Bless:
     async def send_ping(self, address: str, pubkey: str, proxy=None):
         url = f"{self.BASE_API}/nodes/{pubkey}/ping"
         data = json.dumps({"isB7SConnected":True})
-        headers = {
-            **self.HEADERS[pubkey],
-            "Authorization": f"Bearer {self.auth_tokens[address]}",
-            "Content-Length": str(len(data)),
-            "Content-Type": "application/json",
-            "X-Extension-Signature": self.signatures[pubkey],
-            "X-Extension-Version": "0.1.8"
-        }
+        headers = self.HEADERS[pubkey].copy()
+        headers["Authorization"] = f"Bearer {self.auth_tokens[address]}"
+        headers["Content-Length"] = str(len(data))
+        headers["Content-type"] = "application/json"
+        headers["X-Extension-Signature"] = self.signatures[pubkey]
+        headers["X-Extension-Version"] = self.VERSION
         proxies = {"http":proxy, "https":proxy} if proxy else None
         await asyncio.sleep(3)
         try:
-            response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110")
+            response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110", verify=False)
             if response.status_code == 429:
                 # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
@@ -434,10 +428,6 @@ class Bless:
                 ping = await self.send_ping(address, pubkey, proxy)
                 if isinstance(ping, dict) and ping.get("status") == "ok":
                     self.print_message(address, pubkey, proxy, Fore.GREEN, "PING Success")
-
-                else:
-                    await asyncio.sleep(5)
-                    continue
 
                 print(
                     f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
