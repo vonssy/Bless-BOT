@@ -282,6 +282,7 @@ class Bless:
             "Authorization": f"Bearer {self.auth_tokens[address]}"
         }
         proxies = {"http":proxy, "https":proxy} if proxy else None
+        await asyncio.sleep(3)
         try:
             response = await asyncio.to_thread(requests.get, url=url, headers=headers, proxies=proxies, timeout=60, impersonate="chrome110")
             if response.status_code == 429:
@@ -307,10 +308,11 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         proxies = {"http":proxy, "https":proxy} if proxy else None
+        await asyncio.sleep(3)
         try:
             response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110")
             if response.status_code == 429:
-                self.signatures[pubkey] = self.generate_signature()
+                # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"Registering Node Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
                 await asyncio.sleep(60)
                 return None
@@ -332,10 +334,11 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         proxies = {"http":proxy, "https":proxy} if proxy else None
+        await asyncio.sleep(3)
         try:
             response = await asyncio.to_thread(requests.post, url=url, headers=headers, json={}, proxies=proxies, timeout=60, impersonate="chrome110")
             if response.status_code == 429:
-                self.signatures[pubkey] = self.generate_signature()
+                # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"Starting Session Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
                 await asyncio.sleep(60)
                 return None
@@ -358,10 +361,11 @@ class Bless:
             "X-Extension-Version": "0.1.8"
         }
         proxies = {"http":proxy, "https":proxy} if proxy else None
+        await asyncio.sleep(3)
         try:
             response = await asyncio.to_thread(requests.post, url=url, headers=headers, data=data, proxies=proxies, timeout=60, impersonate="chrome110")
             if response.status_code == 429:
-                self.signatures[pubkey] = self.generate_signature()
+                # self.signatures[pubkey] = self.generate_signature()
                 self.print_message(address, pubkey, proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}Too Many Request, Retrying in 1 Minutes...")
                 await asyncio.sleep(60)
                 return None
@@ -415,6 +419,8 @@ class Bless:
         is_session_started = await self.process_start_session(address, pubkey, hardware_id, use_proxy)
         if is_session_started:
             while True:
+                await asyncio.sleep(10 * 60)
+                
                 proxy = self.get_next_proxy_for_account(pubkey) if use_proxy else None
 
                 print(
@@ -439,8 +445,6 @@ class Bless:
                     f"{Fore.BLUE + Style.BRIGHT}Wait For 10 Minutes For Next Ping...{Style.RESET_ALL}",
                     end="\r"
                 )
-                
-                await asyncio.sleep(10 * 60)
         
     async def process_get_node_uptime(self, address: str, pubkey: str, use_proxy: bool):
         while True:
